@@ -15,8 +15,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.chaquo.python.Python
-import com.chaquo.python.android.AndroidPlatform
 import com.ragefill.filemanager.databinding.ActivityMainBinding
 import java.io.File
 
@@ -40,11 +38,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        // Start Python
-        if (!Python.isStarted()) {
-            Python.start(AndroidPlatform(this))
-        }
 
         setupFileBrowser()
         setupTerminal()
@@ -73,8 +66,7 @@ class MainActivity : AppCompatActivity() {
                 currentPath = file
                 loadFiles(currentPath)
             } else {
-                // Simple text viewer for now
-                if (file.extension in listOf("txt", "md", "py", "json", "xml", "log", "kt", "java")) {
+                if (file.extension in listOf("txt", "md", "py", "json", "xml", "log", "kt", "java", "csv")) {
                     showTextFile(file)
                 } else {
                     Toast.makeText(this, "Preview not supported for this type", Toast.LENGTH_SHORT).show()
@@ -97,42 +89,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupTerminal() {
+        binding.tvOutput.text = """
+Python terminal will be available in the next update (Chaquopy).
+
+For now this is a simple console placeholder.
+Type anything and press Run to echo it.
+        """.trimIndent()
+
         binding.btnRun.setOnClickListener {
             val code = binding.etCode.text.toString().trim()
             if (code.isEmpty()) return@setOnClickListener
 
-            try {
-                val py = Python.getInstance()
-                val module = py.getModule("builtins")
-                // Simple exec via a helper
-                val result = runPython(code)
-                binding.tvOutput.append("> $code\n$result\n\n")
-                binding.etCode.setText("")
-            } catch (e: Exception) {
-                binding.tvOutput.append("> $code\nError: ${e.message}\n\n")
-            }
-            // Scroll to bottom
+            binding.tvOutput.append("\n> $code\n")
+            binding.tvOutput.append("(Python runtime not yet enabled in this build)\n")
+            binding.etCode.setText("")
             binding.scrollOutput.post {
                 binding.scrollOutput.fullScroll(View.FOCUS_DOWN)
             }
         }
 
         binding.btnClear.setOnClickListener {
-            binding.tvOutput.text = ""
-        }
-    }
-
-    private fun runPython(code: String): String {
-        val py = Python.getInstance()
-        // Use a simple approach: exec in a restricted way and capture output
-        // For production you would redirect sys.stdout
-        val locals = py.getBuiltins().callAttr("dict")
-        try {
-            py.getBuiltins().callAttr("exec", code, locals)
-            // Try to get last expression result if possible; otherwise just success
-            return "OK (executed)"
-        } catch (e: Exception) {
-            return "Error: ${e.message}"
+            binding.tvOutput.text = "Console cleared.\n"
         }
     }
 
@@ -147,7 +124,7 @@ class MainActivity : AppCompatActivity() {
             val content = file.readText()
             AlertDialog.Builder(this)
                 .setTitle(file.name)
-                .setMessage(content.take(5000) + if (content.length > 5000) "\n\n... (truncated)" else "")
+                .setMessage(content.take(8000) + if (content.length > 8000) "\n\n... (truncated)" else "")
                 .setPositiveButton("Close", null)
                 .show()
         } catch (e: Exception) {
