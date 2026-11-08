@@ -24,36 +24,34 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Grant execute permission for gradlew
+      - name: Accept Android licenses
         run: |
-          # Create a minimal gradlew if missing (we use the wrapper properties)
-          if [ ! -f gradlew ]; then
-            # Download a standard Gradle wrapper script
-            curl -sL https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradlew -o gradlew
-            curl -sL https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradlew.bat -o gradlew.bat
-            chmod +x gradlew
-          fi
-          chmod +x gradlew || true
+          yes | sdkmanager --licenses || true
 
-      - name: Create local.properties (optional)
+      - name: Make gradlew executable
+        run: chmod +x gradlew || true
+
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Download Gradle Wrapper JAR if missing
         run: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          mkdir -p gradle/wrapper
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            curl -sL -o gradle/wrapper/gradle-wrapper.jar \
+              https://github.com/gradle/gradle/raw/v8.7.0/gradle/wrapper/gradle-wrapper.jar || \
+            curl -sL -o gradle/wrapper/gradle-wrapper.jar \
+              https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradle/wrapper/gradle-wrapper.jar
+          fi
 
       - name: Build Debug APK
         run: |
-          # Use the Gradle wrapper if present, otherwise install and use system gradle
-          if [ -f ./gradlew ]; then
-            ./gradlew assembleDebug --stacktrace --no-daemon
-          else
-            # Fallback: install gradle via sdk or use downloaded one
-            curl -sL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o gradle.zip
-            unzip -q gradle.zip
-            ./gradle-8.7/bin/gradle assembleDebug --stacktrace --no-daemon
-          fi
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: app-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+          retention-days: 14
